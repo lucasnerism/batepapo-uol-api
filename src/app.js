@@ -32,14 +32,13 @@ app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const lastStatus = Date.now();
   try {
-    const newParticipant = participantSchema.validate({ name, lastStatus });
+    const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
     await db.collection("participants").insertOne(newParticipant);
     const message = { from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
     res.sendStatus(201);
   } catch (error) {
-    console.log(error);
-    res.send(error);
+    res.status(422).send(error.details[0].message);
   }
 
 });
@@ -49,7 +48,7 @@ app.get("/participants", async (req, res) => {
   try {
     participants = await db.collection("participants").find().toArray();
   } catch (error) {
-    console.log(error);
+    return res.send(error);
   }
   res.send(participants);
 });
@@ -68,7 +67,6 @@ app.post("/messages", async (req, res) => {
     console.log(error);
     res.status(422).send(error.details[0].message);
   }
-
 });
 
 app.get("/messages", async (req, res) => {
