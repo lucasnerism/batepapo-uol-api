@@ -3,6 +3,7 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import Joi from "joi";
+import dayjs from "dayjs";
 
 const app = express();
 
@@ -29,12 +30,14 @@ mongoClient.connect()
   .then(() => db = mongoClient.db())
   .catch((err) => console.log(err.message));
 
-app.post("/participants", (req, res) => {
+app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const lastStatus = Date.now();
   try {
     const newParticipant = participantSchema.validate({ name, lastStatus });
-    db.collection("participants").insertOne(newParticipant);
+    await db.collection("participants").insertOne(newParticipant);
+    const message = { from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
+    await db.collection("messages").insertOne(message);
     res.sendStatus(201);
   } catch (error) {
     console.log(error);
@@ -42,7 +45,6 @@ app.post("/participants", (req, res) => {
   }
 
 });
-
 
 app.get("/participants", async (req, res) => {
   let participants = [];
