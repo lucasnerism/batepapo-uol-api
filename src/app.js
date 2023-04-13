@@ -56,6 +56,30 @@ app.get("/participants", async (req, res) => {
   res.send(participants);
 });
 
+app.post("/messages", async (req, res) => {
+
+});
+
+app.get("/messages", async (req, res) => {
+  let messages = [];
+  let limit = req.query.limit;
+  const user = req.headers;
+
+  limit = Number(limit);
+  if (isNaN(limit) || limit <= 0) return res.sendStatus(422);
+
+  try {
+    messages = await db.collection("messages").find({ $or: [{ to: user }, { from: user }, { type: { $in: ["message", "status"] } }] }).toArray();
+    if (limit !== undefined) {
+      return res.send(messages.slice(-limit));
+    }
+    res.send(messages);
+  } catch (error) {
+    console.log(error);
+    return res.send(error);
+  }
+});
+
 
 
 const PORT = 5000;
