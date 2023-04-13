@@ -17,11 +17,9 @@ const participantSchema = Joi.object({
 });
 
 const messageSchema = Joi.object({
-  name: Joi.string().required(),
   to: Joi.string().required(),
   text: Joi.string().required(),
-  type: Joi.string().required(),
-  time: Joi.string().required()
+  type: Joi.string().required()
 });
 
 let db;
@@ -57,21 +55,33 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
+  const { to, text, type } = req.body;
+  const { user } = req.headers;
+
+  if (type !== "message" && type !== "private_message") return res.sendStatus(422);
+  try {
+    await Joi.assert(req.body, messageSchema);
+    const message = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
+    await db.collection("messages").insertOne(message);
+    res.send("ok");
+  } catch (error) {
+    console.log(error);
+    res.status(422).send(error.details[0].message);
+  }
 
 });
 
 app.get("/messages", async (req, res) => {
   let messages = [];
-  let limit = req.query.limit;
-  const user = req.headers;
+  let { limit } = req.query;
+  const { user } = req.headers;
 
-  limit = Number(limit);
-  if (isNaN(limit) || limit <= 0) return res.sendStatus(422);
-
+  if (!user) return res.sendStatus(422);
+  if (limit !== undefined && (isNaN(Number(limit)) || Number(limit) <= 0)) return res.sendStatus(422);
   try {
     messages = await db.collection("messages").find({ $or: [{ to: user }, { from: user }, { type: { $in: ["message", "status"] } }] }).toArray();
     if (limit !== undefined) {
-      return res.send(messages.slice(-limit));
+      return res.send(messages.slice(-Number(limit)));
     }
     res.send(messages);
   } catch (error) {
