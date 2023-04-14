@@ -38,7 +38,7 @@ app.post("/participants", async (req, res) => {
 
   try {
     await Joi.assert(name, participantSchema);
-    const newParticipant = { name, lastStatus };
+    const newParticipant = { name: stripHtml(name).result, lastStatus };
     const result = await db.collection("participants").find({ name: stripHtml(name).result }).toArray();
     if (result.length !== 0) return res.sendStatus(409);
     await db.collection("participants").insertOne(newParticipant);
