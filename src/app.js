@@ -150,8 +150,8 @@ app.put("/messages/:id", async (req, res) => {
     if (message.from !== user) return res.status(401).send("Você não é o dono dessa mensagem!");
     await Joi.assert(req.body, messageSchema);
     const newMessage = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
-    await db.collection("messages").updateOne({ _id: new ObjectId(id) }, newMessage);
-    res.sendStatus(201);
+    await db.collection("messages").updateOne({ _id: new ObjectId(id) }, { $set: newMessage });
+    res.send("Mensagem atualizada com sucesso");
   } catch (error) {
     console.log(error);
     res.status(422).send(error.details[0].message);
