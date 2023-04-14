@@ -24,21 +24,27 @@ const messageSchema = Joi.object({
 
 let db;
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
-mongoClient.connect()
-  .then(() => db = mongoClient.db())
-  .catch((err) => console.log(err.message));
+try {
+  await mongoClient.connect();
+  db = mongoClient.db();
+} catch (err) {
+  console.log(err.message);
+}
 
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
   const lastStatus = Date.now();
   try {
     const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
+    const result = await db.collection("participants").find({ name }).toArray();
+    if (result.length !== 0) return res.sendStatus(409);
     await db.collection("participants").insertOne(newParticipant);
     const message = { from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
     res.sendStatus(201);
   } catch (error) {
-    res.status(422).send(error.details[0].message);
+    if (error.details) return res.status(422).send(error.details[0].message);
+    res.status(500).send(error.message);
   }
 
 });
@@ -59,10 +65,12 @@ app.post("/messages", async (req, res) => {
 
   if (type !== "message" && type !== "private_message") return res.sendStatus(422);
   try {
+    const result = await db.collection("participants").find({ name: user }).toArray();
+    if (result.length === 0) return res.status(422).send("Você não faz parte da sala");
     await Joi.assert(req.body, messageSchema);
     const message = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
-    res.send("ok");
+    res.sendStatus(201);
   } catch (error) {
     console.log(error);
     res.status(422).send(error.details[0].message);
