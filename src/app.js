@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import Joi from "joi";
 import dayjs from "dayjs";
+import { stripHtml } from "string-strip-html";
 
 const app = express();
 
@@ -32,7 +33,8 @@ try {
 }
 
 app.post("/participants", async (req, res) => {
-  const { name } = req.body;
+  let { name } = req.body;
+  name = stripHtml(name).result;
   const lastStatus = Date.now();
   try {
     const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
@@ -60,8 +62,12 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
-  const { to, text, type } = req.body;
-  const { user } = req.headers;
+  let { to, type, text } = req.body;
+  to = stripHtml(to).result;
+  type = stripHtml(type).result;
+  text = stripHtml(text).result;
+  let { user } = req.headers;
+  user = stripHtml(user).result;
 
   if (type !== "message" && type !== "private_message") return res.sendStatus(422);
   try {
