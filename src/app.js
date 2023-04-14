@@ -44,12 +44,11 @@ app.post("/participants", async (req, res) => {
     await db.collection("participants").insertOne(newParticipant);
     const message = { from: stripHtml(name).result, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
-    res.sendStatus(201);
   } catch (error) {
     if (error.details) return res.status(422).send(error.details[0].message);
     res.status(500).send(error.message);
   }
-
+  return res.sendStatus(201);
 });
 
 app.get("/participants", async (req, res) => {
@@ -59,7 +58,7 @@ app.get("/participants", async (req, res) => {
   } catch (error) {
     return res.send(error);
   }
-  res.send(participants);
+  return res.send(participants);
 });
 
 app.post("/messages", async (req, res) => {
@@ -74,16 +73,16 @@ app.post("/messages", async (req, res) => {
     await Joi.assert(req.body, messageSchema);
     const message = { from: stripHtml(user).result, to: stripHtml(to).result, text: stripHtml(text).result, type: stripHtml(type).result, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
-    res.sendStatus(201);
   } catch (error) {
     console.log(error);
     res.status(422).send(error.details[0].message);
   }
+  return res.sendStatus(201);
 });
 
 app.get("/messages", async (req, res) => {
   let messages = [];
-  let { limit } = req.query;
+  const { limit } = req.query;
   const { user } = req.headers;
 
   if (!user) return res.sendStatus(422);
@@ -93,11 +92,11 @@ app.get("/messages", async (req, res) => {
     if (limit !== undefined) {
       return res.send(messages.slice(-Number(limit)));
     }
-    res.send(messages);
   } catch (error) {
     console.log(error);
     return res.send(error);
   }
+  return res.send(messages);
 });
 
 app.post("/status", async (req, res) => {
@@ -108,10 +107,10 @@ app.post("/status", async (req, res) => {
     if (result.length === 0) return res.sendStatus(404);
     const newDate = Date.now();
     await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: newDate } });
-    res.sendStatus(200);
   } catch (err) {
     res.sendStatus(500);
   }
+  return res.sendStatus(200);
 });
 
 app.delete("/messages/:id", async (req, res) => {
@@ -124,10 +123,10 @@ app.delete("/messages/:id", async (req, res) => {
     if (message.from !== stripHtml(user).result) return res.status(401).send("Você não é o dono dessa mensagem!");
     const resultDelete = await db.collection("messages").deleteOne({ _id: new ObjectId(id) });
     if (!resultDelete) return res.status(404).send("A mensagem não existe.");
-    res.status(200).send("Mensagem deletada com sucesso!");
   } catch (err) {
     console.log(err);
   }
+  return res.status(200).send("Mensagem deletada com sucesso!");
 });
 
 app.put("/messages/:id", async (req, res) => {
@@ -146,11 +145,11 @@ app.put("/messages/:id", async (req, res) => {
     await Joi.assert(req.body, messageSchema);
     const newMessage = { from: stripHtml(user).result, to: stripHtml(to).result, text: stripHtml(text).result, type: stripHtml(type).result, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").updateOne({ _id: new ObjectId(id) }, { $set: newMessage });
-    res.send("Mensagem atualizada com sucesso");
   } catch (error) {
     console.log(error);
     res.status(422).send(error.details[0].message);
   }
+  return res.send("Mensagem atualizada com sucesso");
 });
 
 const inactiveTime = 15000;
