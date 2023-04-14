@@ -96,7 +96,35 @@ app.get("/messages", async (req, res) => {
   }
 });
 
+app.post("/status", async (req, res) => {
+  const { user } = req.headers;
+  if (!user) return res.sendStatus(404);
+  try {
+    const result = await db.collection("participants").find({ name: user }).toArray();
+    if (result.length === 0) return res.sendStatus(404);
+    const newDate = Date.now();
+    await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: newDate } });
+    res.sendStatus(200);
+  } catch (err) {
+    res.sendStatus(500);
+  }
+});
 
+const inactiveTime = 15000;
+setInterval(async () => {
+  try {
+    const inactiveDate = Date.now() - 10000;
+    const result = await db.collection("participants").find({ lastStatus: { $lt: inactiveDate } }).toArray();
+    result.map(async (el) => {
+      const message = { from: el.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
+      await db.collection("messages").insertOne(message);
+    });
+    await db.collection("participants").deleteMany({ lastStatus: { $lt: inactiveDate } });
+
+  } catch (err) {
+    console.log(err);
+  }
+}, inactiveTime);
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
