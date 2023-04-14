@@ -33,15 +33,16 @@ try {
 }
 
 app.post("/participants", async (req, res) => {
-  let { name } = req.body;
-  if (name) name = stripHtml(name).result;
+  const { name } = req.body;
   const lastStatus = Date.now();
+  if (!name) return res.sendStatus(422);
+
   try {
-    const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
-    const result = await db.collection("participants").find({ name }).toArray();
+    const newParticipant = await participantSchema.validateAsync({ name: stripHtml(name).result, lastStatus });
+    const result = await db.collection("participants").find({ name: stripHtml(name).result }).toArray();
     if (result.length !== 0) return res.sendStatus(409);
     await db.collection("participants").insertOne(newParticipant);
-    const message = { from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
+    const message = { from: stripHtml(name).result, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
     res.sendStatus(201);
   } catch (error) {
@@ -62,18 +63,16 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
-  let { to, type, text } = req.body;
-  to = stripHtml(to).result;
-  type = stripHtml(type).result;
-  text = stripHtml(text).result;
-  let { user } = req.headers;
-  if (user) user = stripHtml(user).result;
+  const { to, type, text } = req.body;
+  const { user } = req.headers;
+
+  if (!user || !to || !type || !text) return res.sendStatus(422);
   if (type !== "message" && type !== "private_message") return res.sendStatus(422);
   try {
     const result = await db.collection("participants").findOne({ name: user });
     if (!result) return res.status(422).send("Você não faz parte da sala");
     await Joi.assert(req.body, messageSchema);
-    const message = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
+    const message = { from: stripHtml(user).result, to: stripHtml(to).result, text: stripHtml(text).result, type: stripHtml(type).result, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
     res.sendStatus(201);
   } catch (error) {
@@ -117,12 +116,12 @@ app.post("/status", async (req, res) => {
 
 app.delete("/messages/:id", async (req, res) => {
   const { id } = req.params;
-  let { user } = req.headers;
-  user = stripHtml(user).result;
+  const { user } = req.headers;
+  if (!user) return res.sendStatus(422);
   try {
     const message = await db.collection("messages").findOne({ _id: new ObjectId(id) });
     if (!message) return res.status(404).send("A mensagem não existe.");
-    if (message.from !== user) return res.status(401).send("Você não é o dono dessa mensagem!");
+    if (message.from !== stripHtml(user).result) return res.status(401).send("Você não é o dono dessa mensagem!");
     const resultDelete = await db.collection("messages").deleteOne({ _id: new ObjectId(id) });
     if (!resultDelete) return res.status(404).send("A mensagem não existe.");
     res.status(200).send("Mensagem deletada com sucesso!");
@@ -132,23 +131,20 @@ app.delete("/messages/:id", async (req, res) => {
 });
 
 app.put("/messages/:id", async (req, res) => {
-  let { to, type, text } = req.body;
-  to = stripHtml(to).result;
-  type = stripHtml(type).result;
-  text = stripHtml(text).result;
-  let { user } = req.headers;
-  user = stripHtml(user).result;
+  const { to, type, text } = req.body;
+  const { user } = req.headers;
   const { id } = req.params;
 
+  if (!user || !to || !type || !text) return res.sendStatus(422);
   try {
     if (type !== "message" && type !== "private_message") return res.sendStatus(422);
-    const result = await db.collection("participants").findOne({ name: user });
+    const result = await db.collection("participants").findOne({ name: stripHtml(user).result });
     if (!result) return res.status(422).send("Você não faz parte da sala");
     const message = await db.collection("messages").findOne({ _id: new ObjectId(id) });
     if (!message) return res.status(404).send("A mensagem não existe!");
     if (message.from !== user) return res.status(401).send("Você não é o dono dessa mensagem!");
     await Joi.assert(req.body, messageSchema);
-    const newMessage = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
+    const newMessage = { from: stripHtml(user).result, to: stripHtml(to).result, text: stripHtml(text).result, type: stripHtml(type).result, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").updateOne({ _id: new ObjectId(id) }, { $set: newMessage });
     res.send("Mensagem atualizada com sucesso");
   } catch (error) {
