@@ -132,6 +132,32 @@ app.delete("/messages/:id", async (req, res) => {
   }
 });
 
+app.put("/messages/:id", async (req, res) => {
+  let { to, type, text } = req.body;
+  to = stripHtml(to).result;
+  type = stripHtml(type).result;
+  text = stripHtml(text).result;
+  let { user } = req.headers;
+  user = stripHtml(user).result;
+  const { id } = req.params;
+
+  try {
+    if (type !== "message" && type !== "private_message") return res.sendStatus(422);
+    const result = await db.collection("participants").findOne({ name: user });
+    if (!result) return res.status(422).send("Você não faz parte da sala");
+    const message = await db.collection("messages").findOne({ _id: new ObjectId(id) });
+    if (!message) return res.status(404).send("A mensagem não existe!");
+    if (message.from !== user) return res.status(401).send("Você não é o dono dessa mensagem!");
+    await Joi.assert(req.body, messageSchema);
+    const newMessage = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
+    await db.collection("messages").updateOne({ _id: new ObjectId(id) }, newMessage);
+    res.sendStatus(201);
+  } catch (error) {
+    console.log(error);
+    res.status(422).send(error.details[0].message);
+  }
+});
+
 const inactiveTime = 15000;
 setInterval(async () => {
   try {
