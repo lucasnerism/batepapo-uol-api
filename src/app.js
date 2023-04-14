@@ -34,7 +34,7 @@ try {
 
 app.post("/participants", async (req, res) => {
   let { name } = req.body;
-  name = stripHtml(name).result;
+  if (name) name = stripHtml(name).result;
   const lastStatus = Date.now();
   try {
     const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
@@ -67,12 +67,11 @@ app.post("/messages", async (req, res) => {
   type = stripHtml(type).result;
   text = stripHtml(text).result;
   let { user } = req.headers;
-  user = stripHtml(user).result;
-
+  if (user) user = stripHtml(user).result;
   if (type !== "message" && type !== "private_message") return res.sendStatus(422);
   try {
-    const result = await db.collection("participants").find({ name: user }).toArray();
-    if (result.length === 0) return res.status(422).send("Você não faz parte da sala");
+    const result = await db.collection("participants").findOne({ name: user });
+    if (!result) return res.status(422).send("Você não faz parte da sala");
     await Joi.assert(req.body, messageSchema);
     const message = { from: user, to, text, type, time: dayjs().format("HH:mm:ss") };
     await db.collection("messages").insertOne(message);
