@@ -38,7 +38,7 @@ app.post("/participants", async (req, res) => {
   if (!name) return res.sendStatus(422);
 
   try {
-    const newParticipant = await participantSchema.validateAsync({ name: stripHtml(name).result, lastStatus });
+    const newParticipant = await participantSchema.validateAsync({ name, lastStatus });
     const result = await db.collection("participants").find({ name: stripHtml(name).result }).toArray();
     if (result.length !== 0) return res.sendStatus(409);
     await db.collection("participants").insertOne(newParticipant);
